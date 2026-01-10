@@ -1,2 +1,6 @@
 .venv/
+venv/
 .env
+__pycache__/
+test.py
+camera_test.py
