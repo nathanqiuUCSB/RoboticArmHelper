@@ -6,7 +6,7 @@ from lerobot.common.robot_devices.robots.so100 import SO100Robot
 # CHANGE THIS to your specific port!
 # Windows example: "COM3"
 # Linux/Mac example: "/dev/ttyACM0" or "/dev/tty.usbmodem..."
-ROBOT_PORT = "/dev/ttyACM0" 
+ROBOT_PORT = "/dev/tty.usbmodem5A7C1217691" 
 
 def main():
     print(f"1. Attempting to connect to {ROBOT_PORT}...")
