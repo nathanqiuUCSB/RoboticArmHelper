@@ -170,14 +170,14 @@ def move_to_star(robot, star_index, shoulder_pan):
     
     # STAGE 1: Move to hover position above the star
     print(f"Moving to hover position above star {star_index}...")
-    hover_position = STAR_HOVER_POSITIONS[star_index].copy()
+    hover_position = STAR_HOVER_POSITIONS[star_index]
     hover_position["shoulder_pan.pos"] = adjusted_shoulder_pan
     smooth_move(robot, hover_position, steps=60, dt=0.04)
     time.sleep(0.5)  # Stabilize
     
     # STAGE 2: Move down to grab position
     print(f"Moving down to grab position at star {star_index}...")
-    grab_position = STAR_GRAB_POSITIONS[star_index].copy()
+    grab_position = STAR_GRAB_POSITIONS[star_index]
     grab_position["shoulder_pan.pos"] = adjusted_shoulder_pan
     smooth_move(robot, grab_position, steps=40, dt=0.04)
     time.sleep(0.5)
@@ -350,40 +350,116 @@ def main():
         camera_thread.start()
         time.sleep(0.5)  # Give thread time to start
         
-        # ===== SCAN FOR COLORED OBJECT (ORANGE) =====
-        print("\n" + "="*60)
-        print("SCANNING FOR COLORED OBJECT")
-        print("="*60)
+        # Scan for object from starting position
         target, best_pan_angle, best_pixel_offset, best_frame, best_scan_pos, shoulder_pos = scan_for_object(robot, detector, planner, plan)
-        update_camera_display()
+        update_camera_display()  # Update display in main thread
         
         if target is None:
             print("Could not find target object. Exiting.")
             return
         
-        # Move back to best view position
+        # Move back to the position with best view of the object (closest to center)
         print(f"\nMoving back to best view position (pan angle: {best_pan_angle:.2f})...")
         smooth_move(robot, best_scan_pos, steps=60, dt=0.04)
-        time.sleep(0.5)
+        time.sleep(0.5)  # Wait for camera to stabilize
         update_camera_display()
+        print("At best view position - centering object horizontally...")
         
-        # Take still picture and find star index
+
+        """
+        # Continuously adjust pan to center object horizontally
+        target_color = plan.get('color')
+        center_tolerance_pixels = 10.0  # Stop when object is within 10 pixels of center horizontally
+        max_iterations = 50
+        iteration = 0
+        
+        with robot_lock:
+            obs = robot.get_observation()
+            joint_names = list(robot.bus.motors.keys())
+            current_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
+        
+        
+        while iteration < max_iterations:
+            iteration += 1
+            update_camera_display()
+            time.sleep(0.2)  # Wait a bit for camera to update
+            
+            # Get current camera frame and detect object
+            with robot_lock:
+                obs = robot.get_observation()
+            camera_key = "wrist"
+            if camera_key in obs and isinstance(obs[camera_key], np.ndarray):
+                frame = obs[camera_key]
+                if len(frame.shape) == 3 and frame.shape[2] == 3:
+                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    
+                    # Detect objects
+                    detections = detector.detect_objects(frame_bgr, target_attribute={'color': target_color} if target_color else None)
+                    targets = detector.filter_by_attribute(detections, {'color': target_color} if target_color else {})
+                    
+                    # Find target object
+                    target = None
+                    if not target_color or 'biggest' in str(plan.get('action', '')).lower():
+                        if targets:
+                            target = detector.get_largest_object(targets)
+                    elif targets:
+                        target = targets[0]
+                    
+                    if target:
+                        # Calculate pixel offset from image center
+                        img_center_x = frame_bgr.shape[1] / 2
+                        bbox_center_x = (target['bbox'][0] + target['bbox'][2]) / 2
+                        horizontal_offset_px = bbox_center_x - img_center_x
+                        
+                        print(f"Iteration {iteration}: Horizontal offset: {horizontal_offset_px:.1f} pixels", end='')
+                        
+                        # Check if centered (within tolerance)
+                        if abs(horizontal_offset_px) < center_tolerance_pixels:
+                            print(" ✓ CENTERED!")
+                            break
+                        
+                        # Adjust pan to center object horizontally
+                        # Convert pixel offset to pan adjustment (empirical scaling)
+                        pan_adjustment = horizontal_offset_px * PIXEL_X_TO_PAN_SCALE
+                        
+                        # Update current position
+                        current_pos["shoulder_pan.pos"] += pan_adjustment
+                        current_pos["shoulder_pan.pos"] = max(-100.0, min(100.0, current_pos["shoulder_pan.pos"]))
+                        
+                        print(f" → Adjusting pan by {pan_adjustment:.2f}")
+                        
+                        # Move to new position
+                        with robot_lock:
+                            robot.send_action(current_pos)
+                        time.sleep(0.03)
+                    else:
+                        print(f"Iteration {iteration}: Object not detected, continuing...")
+                        time.sleep(0.03)
+                        
+        
+        print("\n" + "="*60)
+        print("STAGE 1 COMPLETE - Object centered horizontally in camera frame")
+        print("="*60)
+        print(f"Final pan position: {current_pos['shoulder_pan.pos']:.2f} (normalized)")
+        print("\nProceeding to STAGE 2: Positioning camera directly above object...")
+        print("="*60)
+        """
+
+        # Take still picture, locate both the colored object AND the X
         target_color = plan.get('color')
         print(f"Target color: {target_color}")
         picture = take_one_photo(robot)
-        
+
+        # Scan for orange
         detections_color = detector.detect_objects(picture, target_attribute={'color': target_color} if target_color else None)
         colored = detector.filter_by_attribute(detections_color, {'color': target_color} if target_color else {})
         print(f"Colored objects found: {colored}")
         color_star_index = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
         print(f"FOUND COLORED OBJECT AT STAR {color_star_index}")
 
-        # ===== SCAN FOR BLUE X (EXACT SAME PATTERN) =====
-        print("\n" + "="*60)
-        print("SCANNING FOR BLUE X")
-        print("="*60)
+        # Scan for X (blue) - same pattern as orange
         x_plan = {'color': 'blue'}
-        x_target, x_best_pan_angle, x_best_pixel_offset, x_best_frame, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
+        x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
         update_camera_display()
         
         if x_target is None:
@@ -391,18 +467,17 @@ def main():
             x_star_index = None
             x_shoulder_pos = None
         else:
-            # Move back to best view position for X
+            # Move back to the position with best view of the X (same as orange)
             print(f"\nMoving back to best view position for X (pan angle: {x_best_pan_angle:.2f})...")
             smooth_move(robot, x_best_scan_pos, steps=60, dt=0.04)
             time.sleep(0.5)
             update_camera_display()
             
-            # Take still picture and find star index
+            # Take still picture, locate the blue X (same pattern as orange)
             x_picture = take_one_photo(robot)
             detections_x = detector.detect_objects(x_picture, target_attribute={'color': 'blue'})
             x_objects = detector.filter_by_attribute(detections_x, {'color': 'blue'})
             print(f"Blue X objects found: {x_objects}")
-            
             if x_objects:
                 x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
                 print(f"FOUND X AT STAR {x_star_index}")
@@ -411,28 +486,27 @@ def main():
                 x_star_index = None
                 x_shoulder_pos = None
 
-        # ===== EXECUTE PICK AND PLACE =====
-        print("\n" + "="*60)
-        print("EXECUTING PICK AND PLACE")
-        print("="*60)
-        
-        # Move to colored object's star and pick it up
+        shoulder_pos = best_scan_pos["shoulder_pan.pos"]
+
+        print(f"Best scan pos: {shoulder_pos}")
+
+        # move to the colored object's star
         move_to_star(robot, color_star_index, shoulder_pos)
 
-        # Move to X location and drop the object
+        # Now move to the X location and drop the object
         if x_star_index is not None:
             print(f"\nMoving to X location at star {x_star_index}...")
             
             # Move to X's hover position
             x_hover_position = STAR_HOVER_POSITIONS[x_star_index].copy()
-            x_hover_position["shoulder_pan.pos"] = x_shoulder_pos + 7.5
+            x_hover_position["shoulder_pan.pos"] = x_shoulder_pos + 7.5  # Same offset
             x_hover_position["gripper.pos"] = -50.0  # Keep gripper closed
             smooth_move(robot, x_hover_position, steps=60, dt=0.04)
             time.sleep(0.5)
             
             # Open gripper to drop object
             print("Opening gripper to drop object...")
-            x_hover_position["gripper.pos"] = 49.81
+            x_hover_position["gripper.pos"] = 49.81  # Open gripper
             smooth_move(robot, x_hover_position, steps=20, dt=0.04)
             time.sleep(0.5)
             
@@ -440,12 +514,12 @@ def main():
         else:
             print("Skipping drop - X location not found")
 
-        update_camera_display()
+        update_camera_display()  # Update display in main thread
         
         print("\nTask completed!")
         
         # Keep updating display for a bit
-        for _ in range(30):
+        for _ in range(30):  # Update for ~1 second
             update_camera_display()
             time.sleep(0.033)
         
