@@ -12,9 +12,14 @@ import numpy as np
 import json
 from pathlib import Path
 
+# Load calibration file to get actual joint ranges
+CALIBRATION_DIR = Path(__file__).parent
+CALIBRATION_FILE = CALIBRATION_DIR / "hackathon_robot.json"
+
 # Joint limits from URDF (in radians, converted to degrees)
-# These are used for converting normalized positions to degrees
-JOINT_LIMITS_DEG = {
+# These represent the theoretical maximum range of motion
+# We'll use these as the degree limits, but mapping will use calibration ranges for normalized values
+URDF_JOINT_LIMITS_DEG = {
     "shoulder_pan": (-110.0, 110.0),  # -1.91986 to 1.91986 rad
     "shoulder_lift": (-100.0, 100.0),  # -1.74533 to 1.74533 rad
     "elbow_flex": (-96.8, 96.8),  # -1.69 to 1.69 rad
@@ -23,9 +28,33 @@ JOINT_LIMITS_DEG = {
     "gripper": (0.0, 100.0)  # Not used in IK, but included for completeness
 }
 
+# Load calibration data
+calibration_data = None
+if CALIBRATION_FILE.exists():
+    with open(CALIBRATION_FILE, 'r') as f:
+        calibration_data = json.load(f)
+else:
+    raise FileNotFoundError(f"Calibration file not found: {CALIBRATION_FILE}")
+
+# Calculate degree limits based on calibration ranges
+# The normalized range (-100 to 100) maps to (range_min to range_max) in encoder counts
+# We assume the full URDF range is available, but the calibration defines the actual usable range
+# For IK purposes, we use URDF limits but ensure normalized values respect calibration ranges
+JOINT_LIMITS_DEG = {}
+for joint_name in URDF_JOINT_LIMITS_DEG.keys():
+    if joint_name in calibration_data:
+        # Use URDF limits for degree conversion (theoretical max range)
+        JOINT_LIMITS_DEG[joint_name] = URDF_JOINT_LIMITS_DEG[joint_name]
+    else:
+        # Fallback to URDF limits if not in calibration
+        JOINT_LIMITS_DEG[joint_name] = URDF_JOINT_LIMITS_DEG[joint_name]
+
 
 def normalized_to_degrees(normalized_value, joint_name):
     """Convert normalized position (-100 to 100) to degrees.
+    
+    The normalized range (-100 to 100) maps to the calibration range (range_min to range_max).
+    For IK, we convert to degrees using the URDF joint limits.
     
     Args:
         normalized_value: Normalized joint position (-100 to 100)
