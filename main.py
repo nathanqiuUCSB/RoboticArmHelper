@@ -13,6 +13,7 @@ from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from lerobot.model.kinematics import RobotKinematics
 from lerobot.utils.rotation import Rotation
+from helper import find_closest_vertical_pixel
 
 load_dotenv()
 
@@ -34,9 +35,6 @@ STARTING_POSITION = {
 # Global variables for camera display
 robot_lock = threading.Lock()  # Lock for robot operations to prevent port conflicts
 frame_queue = queue.Queue(maxsize=2)  # Queue to pass frames from background thread to main thread
-
-def find_closest_vertical_pixel():
-    pass
 
 def continuous_camera_capture(robot, detector, plan, stop_event):
     """Continuously capture camera frames and process them in background thread."""
@@ -362,9 +360,13 @@ def main():
         print("\nProceeding to STAGE 2: Positioning camera directly above object...")
         print("="*60)
         
-        # STAGE 2: move to grid
-        find_closest_vertical_pixel():
+        # return index of star (0-13)
+        star_index = find_closest_vertical_pixel()
+
+        # move to this star
+        move_to_star(star_index)
         
+
         update_camera_display()  # Update display in main thread
         
         print("\nTask completed!")

@@ -9,6 +9,7 @@ This script will:
 4. Hold the position until Ctrl+C is pressed
 """
 
+from datetime import datetime
 import time
 import os
 import cv2
@@ -114,6 +115,23 @@ def main():
         camera_key = "wrist"
         window_name = "Robot Camera Feed - Starting Position"
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
+        # Take screenshot
+        print("Capturing screenshot...")
+        images_dir = Path(__file__).parent / "images"
+        images_dir.mkdir(exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = images_dir / f"starting_position_{timestamp}.png"
+        
+        # Get one frame and save it
+        obs = robot.get_observation()
+        if "wrist" in obs and isinstance(obs["wrist"], np.ndarray):
+            frame = obs["wrist"]
+            if len(frame.shape) == 3 and frame.shape[2] == 3:
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(str(screenshot_path), frame_bgr)
+                print(f"Screenshot saved to: {screenshot_path}\n")
         
         while True:
             # Get camera frame
