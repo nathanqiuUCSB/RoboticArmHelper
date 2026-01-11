@@ -105,24 +105,10 @@ class ObjectDetector:
             return False
             
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        
-        # For thick duct tape: threshold to get tape, then thin it before line detection
-        # Adaptive threshold to handle varying lighting
-        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # Invert if tape is darker than background
-        if np.mean(binary) > 127:
-            binary = cv2.bitwise_not(binary)
-        
-        # Thin the thick tape lines using morphological operations
-        # Erode to reduce thickness, then use skeletonization approach
-        kernel = np.ones((3,3), np.uint8)
-        thinned = cv2.erode(binary, kernel, iterations=2)
-        
-        # Now detect edges on thinned lines
-        edges = cv2.Canny(thinned, 10, 50)
-        
-        # More lenient HoughLinesP for thinned lines
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=8, minLineLength=5, maxLineGap=25)
+        # More lenient Canny for duct tape (lower thresholds = more edges detected)
+        edges = cv2.Canny(gray, 10, 50)
+        # More lenient HoughLinesP: lower threshold, shorter minLineLength, larger maxLineGap
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=10, minLineLength=5, maxLineGap=30)
         
         if lines is None or len(lines) < 2:
             print(f"X detection failed: lines={lines is None}, count={len(lines) if lines is not None else 0}")
