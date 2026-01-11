@@ -77,13 +77,11 @@ def continuous_camera_capture(robot, detector, plan, stop_event):
                 if len(frame.shape) == 3 and frame.shape[2] == 3:
                     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     
-                    # Detect objects
-                    # Detect objects (both color and shape)
+                    # Detect objects - only detect shape when explicitly looking for it
                     target_color = plan.get('color') if plan else None
                     target_attr = {}
                     if target_color:
                         target_attr['color'] = target_color
-                    target_attr['shape'] = 'x'  # Always look for X shapes too
 
                     detections = detector.detect_objects(frame_bgr, target_attribute=target_attr)
                     targets = detector.filter_by_attribute(detections, {'color': target_color} if target_color else {})
