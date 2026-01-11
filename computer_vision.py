@@ -80,12 +80,6 @@ class ObjectDetector:
                         obj_class = color_name 
                     else:
                         obj_class = "other"
-            # Shape detection for "X"
-            if target_attribute and "shape" in target_attribute and target_attribute["shape"]:
-                shape_name = target_attribute["shape"].lower()
-                if shape_name == 'x':
-                    if self.detect_x_shape(roi):
-                        obj_class = 'x'
 
             detections.append({
                 'bbox': (x1, y1, x2, y2),
@@ -94,33 +88,6 @@ class ObjectDetector:
             })
             
         return detections
-
-    def detect_x_shape(self, roi):
-        """
-        Detect if ROI contains an X shape using edge detection and line detection.
-        Returns True if X-like pattern is found.
-        """
-        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=30, minLineLength=20, maxLineGap=10)
-        
-        if lines is None or len(lines) < 2:
-            return False
-        
-        # Simple heuristic: check if there are lines with opposite slopes
-        # (indicating crossing lines like an X)
-        slopes = []
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            if x2 - x1 != 0:
-                slope = (y2 - y1) / (x2 - x1)
-                slopes.append(slope)
-        
-        # Look for positive and negative slopes (X pattern)
-        has_positive = any(s > 0.5 for s in slopes)
-        has_negative = any(s < -0.5 for s in slopes)
-        
-        return has_positive and has_negative
     
     def get_largest_object(self, detections):
         """
@@ -141,9 +108,7 @@ class ObjectDetector:
         for det in detections:
             if attribute.get('color') and det.get('class') == attribute.get('color'):
                 filtered.append(det)
-            elif attribute.get('shape') and det.get('class') == attribute.get('shape'):
-                filtered.append(det)
-            elif not attribute.get('color') and not attribute.get("shape"):
+            elif not attribute.get('color'):
                 # If no color specified, include all detections
                 filtered.append(det)
         return filtered
