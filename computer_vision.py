@@ -97,29 +97,26 @@ class ObjectDetector:
         return detections
 
     def detect_x_shape(self, roi):
-        if roi.size == 0 or roi.shape[0] < 10 or roi.shape[1] < 10:
+        if roi.size == 0:
             return False
             
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 20, 80)  # Very lenient
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=15, minLineLength=10, maxLineGap=20)  # Very lenient
+        edges = cv2.Canny(gray, 40, 120)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=30, minLineLength=20, maxLineGap=12)
         
-        if lines is None or len(lines) < 2:
+        if lines is None or len(lines) < 3:  # Need at least 3 lines
             return False
         
         slopes = []
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            if abs(x2 - x1) > 3:  # Ignore nearly vertical lines
+            if x2 - x1 != 0:
                 slope = (y2 - y1) / (x2 - x1)
                 slopes.append(slope)
         
-        if len(slopes) < 2:
-            return False
-        
-        # Very loose requirements for X or +
-        has_positive = any(s > 0.2 for s in slopes)
-        has_negative = any(s < -0.2 for s in slopes)
+        # Look for crossing lines (X or +)
+        has_positive = any(s > 0.5 for s in slopes)
+        has_negative = any(s < -0.5 for s in slopes)
         
         return has_positive and has_negative
     
