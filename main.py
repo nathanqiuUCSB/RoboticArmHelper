@@ -457,15 +457,27 @@ def main():
         color_star_index = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
         print(f"FOUND COLORED OBJECT AT STAR {color_star_index}")
 
-        # Scan for X (blue)
+        # Scan for X (blue) - same pattern as orange
         x_plan = {'color': 'blue'}
-        print(f"\nStarting blue X scan with plan: {x_plan}")
         x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
-
-        if x_target is not None:
+        update_camera_display()
+        
+        if x_target is None:
+            print("Could not find blue X. Exiting.")
+            x_star_index = None
+            x_shoulder_pos = None
+        else:
+            # Move back to the position with best view of the X (same as orange)
+            print(f"\nMoving back to best view position for X (pan angle: {x_best_pan_angle:.2f})...")
+            smooth_move(robot, x_best_scan_pos, steps=60, dt=0.04)
+            time.sleep(0.5)
+            update_camera_display()
+            
+            # Take still picture, locate the blue X (same pattern as orange)
             x_picture = take_one_photo(robot)
             detections_x = detector.detect_objects(x_picture, target_attribute={'color': 'blue'})
             x_objects = detector.filter_by_attribute(detections_x, {'color': 'blue'})
+            print(f"Blue X objects found: {x_objects}")
             if x_objects:
                 x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
                 print(f"FOUND X AT STAR {x_star_index}")
@@ -473,10 +485,6 @@ def main():
                 print("WARNING: X not found in confirmation photo")
                 x_star_index = None
                 x_shoulder_pos = None
-        else:
-            print("WARNING: X not found during scan - will skip drop step")
-            x_star_index = None
-            x_shoulder_pos = None
 
         shoulder_pos = best_scan_pos["shoulder_pan.pos"]
 
