@@ -34,6 +34,15 @@ STARTING_POSITION = {
     "gripper.pos": 49.81,
 }
 
+ENDING_POSITION = {
+    "shoulder_pan.pos": -5.41,
+    "shoulder_lift.pos": -89.66,
+    "elbow_flex.pos": 87.75,
+    "wrist_flex.pos": 75.45,
+    "wrist_roll.pos": 52.43,
+    "gripper.pos": 49.74,
+}
+
 # Global variables for camera display
 robot_lock = threading.Lock()  # Lock for robot operations to prevent port conflicts
 frame_queue = queue.Queue(maxsize=2)  # Queue to pass frames from background thread to main thread
@@ -147,6 +156,13 @@ def move_to_starting_position(robot):
     time.sleep(0.5)
     print("At starting position - camera positioned above table.")
 
+def move_to_ending_position(robot):
+    """Move robot to ending position."""
+    print("Moving to ending position...")
+    smooth_move(robot, ENDING_POSITION, steps=60, dt=0.03)
+    time.sleep(0.5)
+    print("At ending position.")
+
 def move_to_star(robot, star_index, shoulder_pan):
     """
     Move to a star position and grab the object there.
@@ -160,7 +176,7 @@ def move_to_star(robot, star_index, shoulder_pan):
     2. Move down to "grab" position and close gripper
     """
 
-    CLAW_OFFSET = 7.5
+    CLAW_OFFSET = 8
 
     adjusted_shoulder_pan = shoulder_pan + CLAW_OFFSET
     
@@ -353,85 +369,6 @@ def main():
         print("At best view position - centering object horizontally...")
         
 
-        """
-        # Continuously adjust pan to center object horizontally
-        target_color = plan.get('color')
-        center_tolerance_pixels = 10.0  # Stop when object is within 10 pixels of center horizontally
-        max_iterations = 50
-        iteration = 0
-        
-        with robot_lock:
-            obs = robot.get_observation()
-            joint_names = list(robot.bus.motors.keys())
-            current_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
-        
-        
-        while iteration < max_iterations:
-            iteration += 1
-            update_camera_display()
-            time.sleep(0.2)  # Wait a bit for camera to update
-            
-            # Get current camera frame and detect object
-            with robot_lock:
-                obs = robot.get_observation()
-            camera_key = "wrist"
-            if camera_key in obs and isinstance(obs[camera_key], np.ndarray):
-                frame = obs[camera_key]
-                if len(frame.shape) == 3 and frame.shape[2] == 3:
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    
-                    # Detect objects
-                    detections = detector.detect_objects(frame_bgr, target_attribute={'color': target_color} if target_color else None)
-                    targets = detector.filter_by_attribute(detections, {'color': target_color} if target_color else {})
-                    
-                    # Find target object
-                    target = None
-                    if not target_color or 'biggest' in str(plan.get('action', '')).lower():
-                        if targets:
-                            target = detector.get_largest_object(targets)
-                    elif targets:
-                        target = targets[0]
-                    
-                    if target:
-                        # Calculate pixel offset from image center
-                        img_center_x = frame_bgr.shape[1] / 2
-                        bbox_center_x = (target['bbox'][0] + target['bbox'][2]) / 2
-                        horizontal_offset_px = bbox_center_x - img_center_x
-                        
-                        print(f"Iteration {iteration}: Horizontal offset: {horizontal_offset_px:.1f} pixels", end='')
-                        
-                        # Check if centered (within tolerance)
-                        if abs(horizontal_offset_px) < center_tolerance_pixels:
-                            print(" ✓ CENTERED!")
-                            break
-                        
-                        # Adjust pan to center object horizontally
-                        # Convert pixel offset to pan adjustment (empirical scaling)
-                        pan_adjustment = horizontal_offset_px * PIXEL_X_TO_PAN_SCALE
-                        
-                        # Update current position
-                        current_pos["shoulder_pan.pos"] += pan_adjustment
-                        current_pos["shoulder_pan.pos"] = max(-100.0, min(100.0, current_pos["shoulder_pan.pos"]))
-                        
-                        print(f" → Adjusting pan by {pan_adjustment:.2f}")
-                        
-                        # Move to new position
-                        with robot_lock:
-                            robot.send_action(current_pos)
-                        time.sleep(0.03)
-                    else:
-                        print(f"Iteration {iteration}: Object not detected, continuing...")
-                        time.sleep(0.03)
-                        
-        
-        print("\n" + "="*60)
-        print("STAGE 1 COMPLETE - Object centered horizontally in camera frame")
-        print("="*60)
-        print(f"Final pan position: {current_pos['shoulder_pan.pos']:.2f} (normalized)")
-        print("\nProceeding to STAGE 2: Positioning camera directly above object...")
-        print("="*60)
-        """
-
         #take still picture, locate 
         target_color = plan.get('color')
         print(target_color)
@@ -441,13 +378,9 @@ def main():
         print(colored)
         vertical_group = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
         print(f"FOUND VERTICAL CATEGORY {vertical_group}")
-
-        
-        # return index of star (0-13)
-        #star_index = find_closest_vertical_pixel(1)
         star_index = vertical_group #7
 
-        shoulder_pos = best_scan_pos["shoulder_pan.pos"]
+        #shoulder_pos = best_scan_pos["shoulder_pan.pos"]
         print(f"Best scan pos: {shoulder_pos}")
 
         # move to this star
@@ -483,9 +416,10 @@ def main():
         if camera_thread:
             camera_thread.join(timeout=1.0)
         
-        # Return to starting position (overhead)
+        # Go to ending positon
         print("\nReturning to starting position (overhead)...")
-        move_to_starting_position(robot)
+        #move_to_starting_position(robot)
+        move_to_ending_position(robot)
         robot.disconnect()
         print("Robot disconnected.")
         cv2.destroyAllWindows()
