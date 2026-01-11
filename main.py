@@ -37,6 +37,7 @@ STARTING_POSITION = {
 # Global variables for camera display
 robot_lock = threading.Lock()  # Lock for robot operations to prevent port conflicts
 frame_queue = queue.Queue(maxsize=2)  # Queue to pass frames from background thread to main thread
+current_camera_plan = {}  # Shared plan for camera display (will be updated during scans)
 def take_one_photo(robot,  camera_key="wrist"):
     """Capture a single camera frame from the robot."""
     with robot_lock:
@@ -57,7 +58,7 @@ def take_one_photo(robot,  camera_key="wrist"):
     return frame
 
 
-def continuous_camera_capture(robot, detector, plan, stop_event):
+def continuous_camera_capture(robot, detector, stop_event):
     """Continuously capture camera frames and process them in background thread."""
     camera_key = "wrist"
     frame_time = 1.0 / 30.0  # 30 fps = 33.33ms per frame
@@ -77,15 +78,15 @@ def continuous_camera_capture(robot, detector, plan, stop_event):
                 if len(frame.shape) == 3 and frame.shape[2] == 3:
                     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     
-                    # Detect objects
-                    target_color = plan.get('color') if plan else None
+                    # Detect objects - use global current_camera_plan
+                    target_color = current_camera_plan.get('color') if current_camera_plan else None
                     detections = detector.detect_objects(frame_bgr, target_attribute={'color': target_color} if target_color else None)
                     targets = detector.filter_by_attribute(detections, {'color': target_color} if target_color else {})
                     
                     # Determine target bbox
                     target_bbox = None
                     if targets:
-                        if not target_color or 'biggest' in str(plan.get('action', '')).lower():
+                        if not target_color or 'biggest' in str(current_camera_plan.get('action', '')).lower():
                             target = detector.get_largest_object(targets)
                             target_bbox = target['bbox']
                         else:
@@ -322,6 +323,10 @@ def main():
         instruction = input("\nEnter command (e.g., 'pick up the red block' or 'grab the biggest block'): ")
         plan = planner.parse_instruction(instruction)
         print(f"\nPlan: {plan}")
+        
+        # Set initial camera plan
+        global current_camera_plan
+        current_camera_plan = plan
 
         # Move to starting position (overhead)
         move_to_starting_position(robot)
@@ -330,7 +335,7 @@ def main():
         #Start continuous camera capture thread (background processing)
         camera_thread = threading.Thread(
             target=continuous_camera_capture,
-            args=(robot, detector, plan, stop_camera_event),
+            args=(robot, detector, stop_camera_event),
             daemon=True
         )
 
@@ -371,8 +376,9 @@ def main():
         print("STEP 2: SCANNING FOR BLUE X (DROP LOCATION)")
         print("="*60)
         
-        # Create blue plan
+        # Create blue plan and UPDATE camera display
         blue_plan = {'color': 'blue'}
+        current_camera_plan = blue_plan  # Update global so camera thread shows blue
         
         # Scan for blue X (EXACT SAME LOGIC AS COLORED OBJECT)
         blue_target, blue_best_pan_angle, blue_best_pixel_offset, blue_best_frame, blue_best_scan_pos, blue_shoulder_pos = scan_for_object(robot, detector, planner, blue_plan)
