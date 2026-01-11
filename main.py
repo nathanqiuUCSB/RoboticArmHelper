@@ -215,9 +215,6 @@ def scan_for_object(robot, detector, planner, plan, max_scan_offset=30.0, scan_s
     """
     print(f"Scanning for {plan.get('color', 'target')} object from starting position...")
     
-    # Ensure we're at starting position
-    move_to_starting_position(robot)
-    
     camera_key = "wrist"
     
     # Scan by panning left/right from starting position

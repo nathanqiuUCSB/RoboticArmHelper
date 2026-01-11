@@ -130,7 +130,7 @@ STAR_GRAB_POSITIONS = [
     "shoulder_pan.pos": 8.75,
     "shoulder_lift.pos": -6.05,
     "elbow_flex.pos": 51.77,
-    "wrist_flex.pos": 69.19,
+    "wrist_flex.pos": 65.19,
     "wrist_roll.pos": 52.48,
     "gripper.pos": 48.96,
     },
