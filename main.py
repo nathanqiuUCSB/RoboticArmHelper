@@ -457,14 +457,14 @@ def main():
         color_star_index = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
         print(f"FOUND COLORED OBJECT AT STAR {color_star_index}")
 
-        # Scan for X
-        x_plan = {'shape': 'x'}
+        # Scan for X (blue)
+        x_plan = {'color': 'blue'}
         x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
 
         if x_target is not None:
             x_picture = take_one_photo(robot)
-            detections_x = detector.detect_objects(x_picture, target_attribute={'shape': 'x'})
-            x_objects = detector.filter_by_attribute(detections_x, {'shape': 'x'})
+            detections_x = detector.detect_objects(x_picture, target_attribute={'color': 'blue'})
+            x_objects = detector.filter_by_attribute(detections_x, {'color': 'blue'})
             if x_objects:
                 x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
                 print(f"FOUND X AT STAR {x_star_index}")
