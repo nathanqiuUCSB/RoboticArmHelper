@@ -34,12 +34,22 @@ STARTING_POSITION = {
 
 # STAGE 2 Starting Position Template (with shoulder_pan.pos = 0.0 as template)
 # The actual shoulder_pan.pos from STAGE 1 will replace the 0.0 value
+'''
 STAGE2_STARTING_POSITION_TEMPLATE = {
     "shoulder_pan.pos": 0.0,
     "shoulder_lift.pos": -78.47,
     "elbow_flex.pos": 66.13,
     "wrist_flex.pos": 91.60,
     "wrist_roll.pos": 54.68,
+    "gripper.pos": 49.42,
+}
+'''
+STAGE2_STARTING_POSITION_TEMPLATE = {
+    "shoulder_pan.pos": 0.00,
+    "shoulder_lift.pos": -56.86,
+    "elbow_flex.pos": 34.00,
+    "wrist_flex.pos": 97.47,
+    "wrist_roll.pos": 52.43,
     "gripper.pos": 49.42,
 }
 
