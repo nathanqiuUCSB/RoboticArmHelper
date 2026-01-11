@@ -6,16 +6,16 @@ import os
 import threading
 import queue
 from pathlib import Path
-import backend.computer_vision as computer_vision
+import computer_vision as computer_vision
 from dotenv import load_dotenv
-from gemini import NLPRobotPlanner
-from backend.computer_vision import ObjectDetector
+#from gemini import NLPRobotPlanner
+from computer_vision import ObjectDetector
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from lerobot.model.kinematics import RobotKinematics
 from lerobot.utils.rotation import Rotation
-from backend.helper import find_closest_vertical_pixel, STAR_GRAB_POSITIONS, STAR_HOVER_POSITIONS
-import backend.helper as helper
+from helper import find_closest_vertical_pixel, STAR_GRAB_POSITIONS, STAR_HOVER_POSITIONS
+import helper as helper
 
 load_dotenv()
 
@@ -290,7 +290,7 @@ def update_camera_display():
         pass
 
 
-def main():
+def run_robot_task(instruction: str):
     # Initialize components
     print("Initializing robot and components...")
     planner = NLPRobotPlanner()
@@ -319,7 +319,6 @@ def main():
     try:
         
         # Get user instruction
-        instruction = input("\nEnter command (e.g., 'pick up the red block' or 'grab the biggest block'): ")
         plan = planner.parse_instruction(instruction)
         print(f"\nPlan: {plan}")
 
@@ -491,5 +490,4 @@ def main():
         cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    main()
+

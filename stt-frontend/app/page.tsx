@@ -7,6 +7,22 @@ interface Message {
   text: string;
 }
 
+async function sendRobotCommand(text: string) {
+  const res = await fetch("http://localhost:8000/robot/command", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Robot command failed (${res.status}): ${errText}`);
+  }
+
+  return res.json(); // {status: "started"} (or whatever you return)
+}
+
+
 export default function Home() {
   const [recording, setRecording] = useState(false);
   const [text, setText] = useState("");
@@ -144,9 +160,14 @@ export default function Home() {
           userText.length < 500) { // Filter out suspiciously long error messages
         // Add robot response (for now, just echo back or process it)
         // TODO: Replace with actual robot response logic
-        setTimeout(() => {
-          setMessages(prev => [...prev, { type: "robot", text: `Understood: ${userText}` }]);
-        }, 500);
+        //setTimeout(() => {
+         // setMessages(prev => [...prev, { type: "robot", text: `Understood: ${userText}` }]);
+       // }, 500);
+       try{
+        await sendRobotCommand(userText);
+       } catch (err){
+        console.log("Failed to send robot command")
+       }
       }
     } catch (error) {
       console.error("Error sending audio:", error);

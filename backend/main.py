@@ -1,10 +1,11 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from typing import List
 import speech_recognition as sr
 import tempfile
 import os
+from armfunction import run_robot_task
 
 app = FastAPI()
 
@@ -123,3 +124,9 @@ async def transcribe(audio: UploadFile = File(...)):
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
             add_log("🗑️ Temporary file deleted", "info")
+
+
+@app.post("/robot/command")
+def robot_command(cmd: Cmd, background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_robot_task, cmd.text)
+    return {"status": "started"}
