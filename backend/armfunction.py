@@ -8,7 +8,7 @@ import queue
 from pathlib import Path
 import computer_vision as computer_vision
 from dotenv import load_dotenv
-#from gemini import NLPRobotPlanner
+from gemini import NLPRobotPlanner
 from computer_vision import ObjectDetector
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
