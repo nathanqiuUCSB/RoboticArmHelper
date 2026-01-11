@@ -8,11 +8,11 @@ interface Message {
 }
 
 async function sendRobotCommand(text: string) {
-  const res = await fetch("http://localhost:8000/robot/command", {
+  const res = await fetch(`http://localhost:8000/robot/command/${text}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
-  });
+  }); 
 
   if (!res.ok) {
     const errText = await res.text();

@@ -6,6 +6,7 @@ import speech_recognition as sr
 import tempfile
 import os
 from armfunction import run_robot_task
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -126,7 +127,7 @@ async def transcribe(audio: UploadFile = File(...)):
             add_log("🗑️ Temporary file deleted", "info")
 
 
-@app.post("/robot/command")
-def robot_command(cmd: Cmd, background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_robot_task, cmd.text)
+@app.post("/robot/command/{cmd}")
+def robot_command(cmd: str):
+    run_robot_task(cmd)
     return {"status": "started"}
