@@ -394,26 +394,59 @@ def main():
         update_camera_display()
         
         # Step 2: EXTEND FORWARD until object is centered vertically
-        # CRITICAL: Keep gripper PERPENDICULAR the entire time
+        # CRITICAL: Keep gripper PERPENDICULAR to ground (pointing straight down)
         print("\nSTAGE 2 Step 2: Extending forward until object is vertically centered...")
-        print("(Maintaining perpendicular gripper orientation)")
+        print("(Keeping gripper perpendicular to ground)")
         
-        # Get current position
-        with robot_lock:
-            obs = robot.get_observation()
-            joint_names = list(robot.bus.motors.keys())
-            current_stage2_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
-        
-        vertical_center_tolerance_pixels = 15.0  # Stop when within 15px of vertical center
-        max_iterations = 50  # Allow more iterations since we're extending
-        iteration = 0
-        
-        # Movement scale - how aggressively to move based on pixel offset
-        # Start with larger movements for extending, then fine-tune
-        base_movement_scale = 0.5  # Base extension per iteration
-        pixel_adjustment_scale = 0.015  # Additional adjustment based on pixel offset
-        
-        while iteration < max_iterations:
+        try:
+            from stage2_helpers import (
+                joints_normalized_to_degrees,
+                joints_degrees_to_normalized,
+                create_perpendicular_camera_pose,
+            )
+            from lerobot.model.kinematics import RobotKinematics
+            
+            # Initialize kinematics solver
+            print("Initializing kinematics solver...")
+            kinematics = RobotKinematics(
+                urdf_path=str(URDF_PATH),
+                target_frame_name="gripper_frame_link",
+                joint_names=joint_names,
+            )
+            
+            # Get current position
+            with robot_lock:
+                obs = robot.get_observation()
+                joint_names = list(robot.bus.motors.keys())
+                current_stage2_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
+            
+            # Convert to degrees for IK
+            current_joints_deg = joints_normalized_to_degrees(current_stage2_pos, joint_names)
+            
+            # Get current pose
+            current_pose = kinematics.forward_kinematics(current_joints_deg)
+            current_xyz = current_pose[:3, 3]
+            
+            # LOCK these values
+            fixed_pan_normalized = current_stage2_pos['shoulder_pan.pos']
+            fixed_pan_deg = joints_normalized_to_degrees({'shoulder_pan.pos': fixed_pan_normalized}, ['shoulder_pan'])[0]
+            pan_angle_rad = np.radians(fixed_pan_deg)
+            fixed_z_height = current_xyz[2]  # Keep Z constant (parallel to floor)
+            
+            pan_index = joint_names.index('shoulder_pan') if 'shoulder_pan' in joint_names else None
+            wrist_roll_index = joint_names.index('wrist_roll') if 'wrist_roll' in joint_names else None
+            
+            print(f"LOCKED pan angle: {fixed_pan_deg:.2f} degrees")
+            print(f"LOCKED Z height: {fixed_z_height:.3f} m (stays parallel to floor)")
+            
+            vertical_center_tolerance_pixels = 15.0
+            max_iterations = 50
+            iteration = 0
+            
+            # Extension parameters
+            extension_step = 0.015  # 1.5 cm per iteration
+            
+            while iteration < max_iterations:
             iteration += 1
             update_camera_display()
             time.sleep(0.3)
@@ -534,9 +567,35 @@ def main():
             else:
                 print(f"Iteration {iteration}: No camera frame")
                 time.sleep(0.2)
+            
+            if iteration >= max_iterations:
+                print(f"\n⚠ Reached max iterations ({max_iterations})")
+            
+            # Get final position
+            final_joints_normalized = joints_degrees_to_normalized(current_joints_deg, joint_names)
+            current_stage2_pos = final_joints_normalized
+            
+        except ImportError as e:
+            print(f"\nError: stage2_helpers or kinematics not available: {e}")
+            print("Falling back to simple extension without IK...")
+            
+            # Fallback: simple elbow extension
+            with robot_lock:
+                obs = robot.get_observation()
+                current_stage2_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
+            
+            for i in range(20):
+                current_stage2_pos["elbow_flex.pos"] += 1.0
+                current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["elbow_flex.pos"]))
+                with robot_lock:
+                    robot.send_action(current_stage2_pos)
+                time.sleep(0.2)
         
-        if iteration >= max_iterations:
-            print(f"\n⚠ Reached max iterations ({max_iterations})")
+        except Exception as e:
+            print(f"\nError in Stage 2 IK: {e}")
+            import traceback
+            traceback.print_exc()
+        
         
         print("\n" + "="*60)
         print("STAGE 2 COMPLETE - Object centered both horizontally and vertically")
