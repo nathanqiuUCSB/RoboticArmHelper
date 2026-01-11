@@ -445,129 +445,112 @@ def main():
             
             # Extension parameters
             extension_step = 0.015  # 1.5 cm per iteration
+            base_movement_scale = 1.0 # Base increment for normalized movement
             
             while iteration < max_iterations:
-            iteration += 1
-            update_camera_display()
-            time.sleep(0.3)
-            
-            # Get current camera frame and detect object
-            with robot_lock:
-                obs = robot.get_observation()
-            camera_key = "wrist"
-            
-            if camera_key in obs and isinstance(obs[camera_key], np.ndarray):
-                frame = obs[camera_key]
-                if len(frame.shape) == 3 and frame.shape[2] == 3:
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    
-                    # Detect objects
-                    target_color = plan.get('color')
-                    detections = detector.detect_objects(frame_bgr, 
-                        target_attribute={'color': target_color} if target_color else None)
-                    targets = detector.filter_by_attribute(detections, 
-                        {'color': target_color} if target_color else {})
-                    
-                    # Find target object
-                    target = None
-                    if not target_color or 'biggest' in str(plan.get('action', '')).lower():
-                        if targets:
-                            target = detector.get_largest_object(targets)
-                    elif targets:
-                        target = targets[0]
-                    
-                    if target:
-                        # Calculate VERTICAL pixel offset from image center
-                        img_center_y = frame_bgr.shape[0] / 2
-                        bbox_center_y = (target['bbox'][1] + target['bbox'][3]) / 2
-                        vertical_offset_px = bbox_center_y - img_center_y
+                iteration += 1
+                update_camera_display()
+                time.sleep(0.3)
+                
+                # Get current camera frame and detect object
+                with robot_lock:
+                    obs = robot.get_observation()
+                camera_key = "wrist"
+                
+                if camera_key in obs and isinstance(obs[camera_key], np.ndarray):
+                    frame = obs[camera_key]
+                    if len(frame.shape) == 3 and frame.shape[2] == 3:
+                        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                         
-                        print(f"Iteration {iteration}: Vertical offset: {vertical_offset_px:.1f} pixels", end='')
+                        # Detect objects
+                        target_color = plan.get('color')
+                        detections = detector.detect_objects(frame_bgr, 
+                            target_attribute={'color': target_color} if target_color else None)
+                        targets = detector.filter_by_attribute(detections, 
+                            {'color': target_color} if target_color else {})
                         
-                        # Check if vertically centered
-                        if abs(vertical_offset_px) < vertical_center_tolerance_pixels:
-                            print(" ✓ VERTICALLY CENTERED!")
-                            break
+                        # Find target object
+                        target = None
+                        if not target_color or 'biggest' in str(plan.get('action', '')).lower():
+                            if targets:
+                                target = detector.get_largest_object(targets)
+                        elif targets:
+                            target = targets[0]
                         
-                        # CRITICAL: To maintain perpendicularity while moving up/down:
-                        # We need to adjust THREE joints in coordination:
-                        # 1. shoulder_lift: raises/lowers the whole arm
-                        # 2. elbow_flex: extends/retracts the arm
-                        # 3. wrist_flex: keeps camera pointing straight down
-                        
-                        # The key insight: shoulder_lift + elbow_flex + wrist_flex must sum to ~180°
-                        # to keep the camera perpendicular to the ground
-                        
-                        # Positive vertical_offset_px = object is BELOW center → extend arm (move down)
-                        # Negative vertical_offset_px = object is ABOVE center → retract arm (move up)
-                        
-                        # Scale factor for movement (tune this based on testing)
-                        vertical_adjustment_scale = 0.02
-                        
-                        # Primary movement: adjust shoulder_lift to move arm up/down
-                        shoulder_adjustment = vertical_offset_px * vertical_adjustment_scale
-                        
-                        # Secondary movement: adjust elbow_flex to extend/retract
-                        # When lowering shoulder (positive), extend elbow (positive)
-                        # This keeps the gripper moving mostly vertical
-                        elbow_adjustment = shoulder_adjustment * 0.8
-                        
-                        # CRITICAL: Adjust wrist_flex to maintain perpendicularity
-                        # wrist_flex must compensate for changes in shoulder_lift + elbow_flex
-                        # To keep perpendicular: wrist_flex should move OPPOSITE to (shoulder + elbow)
-                        wrist_adjustment = -(shoulder_adjustment + elbow_adjustment)
-                        
-                        # Update positions
-                        current_stage2_pos["shoulder_lift.pos"] += shoulder_adjustment
-                        current_stage2_pos["elbow_flex.pos"] += elbow_adjustment
-                        current_stage2_pos["wrist_flex.pos"] += wrist_adjustment
-                        
-                        # Clamp to valid ranges
-                        current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["shoulder_lift.pos"]))
-                        current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["elbow_flex.pos"]))
-                        current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["wrist_flex.pos"]))
-                        
-                        print(f" → S:{shoulder_adjustment:+.2f}, E:{elbow_adjustment:+.2f}, W:{wrist_adjustment:+.2f}")
-                        
-                        # Move to new position
-                        with robot_lock:
-                            robot.send_action(current_stage2_pos)
-                        
-                        time.sleep(0.2)
+                        if target:
+                            # Calculate VERTICAL pixel offset from image center
+                            img_center_y = frame_bgr.shape[0] / 2
+                            bbox_center_y = (target['bbox'][1] + target['bbox'][3]) / 2
+                            vertical_offset_px = bbox_center_y - img_center_y
+                            
+                            print(f"Iteration {iteration}: Vertical offset: {vertical_offset_px:.1f} pixels", end='')
+                            
+                            # Check if vertically centered
+                            if abs(vertical_offset_px) < vertical_center_tolerance_pixels:
+                                print(" ✓ VERTICALLY CENTERED!")
+                                break
+                            
+                            # CRITICAL: To maintain perpendicularity while moving up/down:
+                            # We need to adjust THREE joints in coordination:
+                            # 1. shoulder_lift: raises/lowers the whole arm
+                            # 2. elbow_flex: extends/retracts the arm
+                            # 3. wrist_flex: keeps camera pointing straight down
+                            
+                            # Scale factor for movement (tune this based on testing)
+                            vertical_adjustment_scale = 0.02
+                            
+                            # Primary movement: adjust shoulder_lift
+                            shoulder_adjustment = vertical_offset_px * vertical_adjustment_scale
+                            
+                            # Secondary movement: adjust elbow_flex
+                            elbow_adjustment = shoulder_adjustment * 0.8
+                            
+                            # CRITICAL: Adjust wrist_flex
+                            wrist_adjustment = -(shoulder_adjustment + elbow_adjustment)
+                            
+                            # Update positions
+                            current_stage2_pos["shoulder_lift.pos"] += shoulder_adjustment
+                            current_stage2_pos["elbow_flex.pos"] += elbow_adjustment
+                            current_stage2_pos["wrist_flex.pos"] += wrist_adjustment
+                            
+                            # Clamp to valid ranges
+                            current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, current_stage2_pos["shoulder_lift.pos"]))
+                            current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["elbow_flex.pos"]))
+                            current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["wrist_flex.pos"]))
+                            
+                            print(f" → S:{shoulder_adjustment:+.2f}, E:{elbow_adjustment:+.2f}, W:{wrist_adjustment:+.2f}")
+                            
+                            # Move to new position
+                            with robot_lock:
+                                robot.send_action(current_stage2_pos)
+                            
+                            time.sleep(0.2)
+                        else:
+                            # Object not visible yet - keep extending forward at base rate
+                            print(f"Iteration {iteration}: Object not visible, extending forward...")
+                            
+                            shoulder_adjustment = base_movement_scale
+                            elbow_adjustment = shoulder_adjustment * 0.8
+                            wrist_adjustment = -(shoulder_adjustment + elbow_adjustment)
+                            
+                            # Update positions
+                            current_stage2_pos["shoulder_lift.pos"] += shoulder_adjustment
+                            current_stage2_pos["elbow_flex.pos"] += elbow_adjustment
+                            current_stage2_pos["wrist_flex.pos"] += wrist_adjustment
+                            
+                            # Clamp
+                            current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, current_stage2_pos["shoulder_lift.pos"]))
+                            current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["elbow_flex.pos"]))
+                            current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["wrist_flex.pos"]))
+                            
+                            with robot_lock:
+                                robot.send_action(current_stage2_pos)
+                            
+                            time.sleep(0.3)
                     else:
-                        # Object not visible yet - keep extending forward at base rate
-                        print(f"Iteration {iteration}: Object not visible, extending forward...")
-                        
-                        # Just extend forward at base rate
-                        shoulder_adjustment = base_movement_scale
-                        elbow_adjustment = shoulder_adjustment * 0.8
-                        wrist_adjustment = -(shoulder_adjustment + elbow_adjustment)
-                        
-                        # Update positions
-                        current_stage2_pos["shoulder_lift.pos"] += shoulder_adjustment
-                        current_stage2_pos["elbow_flex.pos"] += elbow_adjustment
-                        current_stage2_pos["wrist_flex.pos"] += wrist_adjustment
-                        
-                        # Clamp to valid ranges
-                        current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["shoulder_lift.pos"]))
-                        current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["elbow_flex.pos"]))
-                        current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, 
-                            current_stage2_pos["wrist_flex.pos"]))
-                        
-                        # Move to new position
-                        with robot_lock:
-                            robot.send_action(current_stage2_pos)
-                        
-                        time.sleep(0.3)
-            else:
-                print(f"Iteration {iteration}: No camera frame")
-                time.sleep(0.2)
-            
+                        print(f"Iteration {iteration}: No camera frame")
+                        time.sleep(0.2)
+                
             if iteration >= max_iterations:
                 print(f"\n⚠ Reached max iterations ({max_iterations})")
             
@@ -595,7 +578,7 @@ def main():
             print(f"\nError in Stage 2 IK: {e}")
             import traceback
             traceback.print_exc()
-        
+
         
         print("\n" + "="*60)
         print("STAGE 2 COMPLETE - Object centered both horizontally and vertically")
@@ -625,12 +608,9 @@ def main():
             current_stage2_pos["wrist_flex.pos"] += wrist_compensation
             
             # Clamp all values
-            current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["shoulder_lift.pos"]))
-            current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["elbow_flex.pos"]))
-            current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["wrist_flex.pos"]))
+            current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, current_stage2_pos["shoulder_lift.pos"]))
+            current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["elbow_flex.pos"]))
+            current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, current_stage2_pos["wrist_flex.pos"]))
             
             with robot_lock:
                 robot.send_action(current_stage2_pos)
