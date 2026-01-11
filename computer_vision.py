@@ -69,9 +69,22 @@ class ObjectDetector:
         """
         filtered = []
         for det in detections:
-            if det.get('class') == attribute.get('color'):
+            if attribute.get('color') and det.get('class') == attribute.get('color'):
+                filtered.append(det)
+            elif not attribute.get('color'):
+                # If no color specified, include all detections
                 filtered.append(det)
         return filtered
+    
+    def get_largest_object(self, detections):
+        """
+        Return the detection with the largest bounding box area.
+        """
+        if not detections:
+            return None
+        
+        largest = max(detections, key=lambda d: (d['bbox'][2] - d['bbox'][0]) * (d['bbox'][3] - d['bbox'][1]))
+        return largest
 
     def get_target_offset(self, bbox, image_shape):
         """

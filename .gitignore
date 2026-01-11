@@ -4,3 +4,4 @@ venv/
 __pycache__/
 test.py
 camera_test.py
+.DS_Store/
