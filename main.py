@@ -393,8 +393,10 @@ def main():
         time.sleep(0.5)
         update_camera_display()
         
-        # Step 2a: EXTEND FORWARD until object appears in camera frame
-        print("\nSTAGE 2 Step 2a: Extending forward to find object in camera...")
+        # Step 2: EXTEND FORWARD until object is centered vertically
+        # CRITICAL: Keep gripper PERPENDICULAR the entire time
+        print("\nSTAGE 2 Step 2: Extending forward until object is vertically centered...")
+        print("(Maintaining perpendicular gripper orientation)")
         
         # Get current position
         with robot_lock:
@@ -402,84 +404,14 @@ def main():
             joint_names = list(robot.bus.motors.keys())
             current_stage2_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
         
-        # Extension parameters
-        extension_increment = 1.5  # How much to extend per step (normalized units)
-        max_extension_iterations = 40  # Don't extend forever
-        extension_iteration = 0
-        object_found = False
-        
-        print("Extending forward until object is visible...")
-        while extension_iteration < max_extension_iterations and not object_found:
-            extension_iteration += 1
-            
-            # Check if object is in frame
-            with robot_lock:
-                obs = robot.get_observation()
-            camera_key = "wrist"
-            
-            if camera_key in obs and isinstance(obs[camera_key], np.ndarray):
-                frame = obs[camera_key]
-                if len(frame.shape) == 3 and frame.shape[2] == 3:
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    
-                    # Detect objects
-                    target_color = plan.get('color')
-                    detections = detector.detect_objects(frame_bgr, 
-                        target_attribute={'color': target_color} if target_color else None)
-                    targets = detector.filter_by_attribute(detections, 
-                        {'color': target_color} if target_color else {})
-                    
-                    # Find target object
-                    target = None
-                    if not target_color or 'biggest' in str(plan.get('action', '')).lower():
-                        if targets:
-                            target = detector.get_largest_object(targets)
-                    elif targets:
-                        target = targets[0]
-                    
-                    if target:
-                        print(f"Extension iteration {extension_iteration}: ✓ Object found in frame!")
-                        object_found = True
-                        break
-                    else:
-                        print(f"Extension iteration {extension_iteration}: Object not visible, extending forward...")
-            
-            # Extend forward by adjusting shoulder_lift, elbow_flex, wrist_flex (maintaining perpendicularity)
-            shoulder_extend = extension_increment
-            elbow_extend = extension_increment * 0.8
-            wrist_extend = -(shoulder_extend + elbow_extend)
-            
-            current_stage2_pos["shoulder_lift.pos"] += shoulder_extend
-            current_stage2_pos["elbow_flex.pos"] += elbow_extend
-            current_stage2_pos["wrist_flex.pos"] += wrist_extend
-            
-            # Clamp to valid ranges
-            current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["shoulder_lift.pos"]))
-            current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["elbow_flex.pos"]))
-            current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, 
-                current_stage2_pos["wrist_flex.pos"]))
-            
-            # Move to new position
-            with robot_lock:
-                robot.send_action(current_stage2_pos)
-            
-            time.sleep(0.3)
-            update_camera_display()
-        
-        if not object_found:
-            print(f"\n⚠ Warning: Object not found after {max_extension_iterations} extension iterations")
-            print("Proceeding to vertical centering anyway...")
-        else:
-            print("\n✓ Object is now visible in camera frame")
-        
-        # Step 2b: Center object VERTICALLY (now that it's in frame)
-        print("\nSTAGE 2 Step 2b: Centering object vertically (camera stays perpendicular)...")
-        
         vertical_center_tolerance_pixels = 15.0  # Stop when within 15px of vertical center
-        max_iterations = 30
+        max_iterations = 50  # Allow more iterations since we're extending
         iteration = 0
+        
+        # Movement scale - how aggressively to move based on pixel offset
+        # Start with larger movements for extending, then fine-tune
+        base_movement_scale = 0.5  # Base extension per iteration
+        pixel_adjustment_scale = 0.015  # Additional adjustment based on pixel offset
         
         while iteration < max_iterations:
             iteration += 1
@@ -573,8 +505,32 @@ def main():
                         
                         time.sleep(0.2)
                     else:
-                        print(f"Iteration {iteration}: Object not detected")
-                        time.sleep(0.2)
+                        # Object not visible yet - keep extending forward at base rate
+                        print(f"Iteration {iteration}: Object not visible, extending forward...")
+                        
+                        # Just extend forward at base rate
+                        shoulder_adjustment = base_movement_scale
+                        elbow_adjustment = shoulder_adjustment * 0.8
+                        wrist_adjustment = -(shoulder_adjustment + elbow_adjustment)
+                        
+                        # Update positions
+                        current_stage2_pos["shoulder_lift.pos"] += shoulder_adjustment
+                        current_stage2_pos["elbow_flex.pos"] += elbow_adjustment
+                        current_stage2_pos["wrist_flex.pos"] += wrist_adjustment
+                        
+                        # Clamp to valid ranges
+                        current_stage2_pos["shoulder_lift.pos"] = max(-100.0, min(100.0, 
+                            current_stage2_pos["shoulder_lift.pos"]))
+                        current_stage2_pos["elbow_flex.pos"] = max(-100.0, min(100.0, 
+                            current_stage2_pos["elbow_flex.pos"]))
+                        current_stage2_pos["wrist_flex.pos"] = max(-100.0, min(100.0, 
+                            current_stage2_pos["wrist_flex.pos"]))
+                        
+                        # Move to new position
+                        with robot_lock:
+                            robot.send_action(current_stage2_pos)
+                        
+                        time.sleep(0.3)
             else:
                 print(f"Iteration {iteration}: No camera frame")
                 time.sleep(0.2)
