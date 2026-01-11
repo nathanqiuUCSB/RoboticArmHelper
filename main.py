@@ -432,53 +432,27 @@ def main():
         print("="*60)
         """
 
-        # Take still picture, locate both the colored object AND the X
+        #take still picture, locate 
         target_color = plan.get('color')
-        print(f"Target color: {target_color}")
+        print(target_color)
         picture = take_one_photo(robot)
+        detections = detector.detect_objects(picture, target_attribute={'color':target_color} if target_color else None)
+        colored = detector.filter_by_attribute(detections, {'color':target_color} if target_color else None)
+        print(colored)
+        vertical_group = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
+        print(f"FOUND VERTICAL CATEGORY {vertical_group}")
 
-        # Scan for orange
-        detections_color = detector.detect_objects(picture, target_attribute={'color': target_color} if target_color else None)
-        colored = detector.filter_by_attribute(detections_color, {'color': target_color} if target_color else {})
-        print(f"Colored objects found: {colored}")
-        color_star_index = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
-        print(f"FOUND COLORED OBJECT AT STAR {color_star_index}")
-
-        # Scan for X
-        x_plan = {'shape': 'x'}
-        x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
-        x_picture = take_one_photo(robot)
-        detections_x = detector.detect_objects(x_picture, target_attribute={'shape': 'x'})
-        x_objects = detector.filter_by_attribute(detections_x, {'shape': 'x'})
-        x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
+        
+        # return index of star (0-13)
+        #star_index = find_closest_vertical_pixel(1)
+        star_index = vertical_group #7
 
         shoulder_pos = best_scan_pos["shoulder_pan.pos"]
-
         print(f"Best scan pos: {shoulder_pos}")
 
-        # move to the colored object's star
-        move_to_star(robot, color_star_index, shoulder_pos)
-
-        # Now move to the X location and drop the object
-        if x_star_index is not None:
-            print(f"\nMoving to X location at star {x_star_index}...")
-            
-            # Move to X's hover position
-            x_hover_position = STAR_HOVER_POSITIONS[x_star_index].copy()
-            x_hover_position["shoulder_pan.pos"] = x_shoulder_pos + 7.5  # Same offset
-            x_hover_position["gripper.pos"] = -50.0  # Keep gripper closed
-            smooth_move(robot, x_hover_position, steps=60, dt=0.04)
-            time.sleep(0.5)
-            
-            # Open gripper to drop object
-            print("Opening gripper to drop object...")
-            x_hover_position["gripper.pos"] = 49.81  # Open gripper
-            smooth_move(robot, x_hover_position, steps=20, dt=0.04)
-            time.sleep(0.5)
-            
-            print("Object dropped at X location!")
-        else:
-            print("Skipping drop - X location not found")
+        # move to this star
+        move_to_star(robot, star_index, shoulder_pos)
+        
 
         update_camera_display()  # Update display in main thread
         
