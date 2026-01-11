@@ -464,6 +464,7 @@ def main():
         
         # Scan for X (blue)
         x_plan = {'color': 'blue'}
+        print(f"\nStarting blue X scan with plan: {x_plan}")
         x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
 
         if x_target is not None:
