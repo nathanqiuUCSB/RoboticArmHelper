@@ -50,8 +50,8 @@ class ObjectDetector:
                     mask = cv2.inRange(hsv_roi, lower_red1, upper_red1) + cv2.inRange(hsv_roi, lower_red2, upper_red2)
 
                 elif color_name == 'blue':
-                    lower_blue = np.array([90, 50, 30])   # Lower hue (90), lower sat (50), lower val (30)
-                    upper_blue = np.array([150, 255, 255])  # Wider hue range
+                    lower_blue = np.array([90, 40, 80])   # Raised value threshold to 80 for lighter blues
+                    upper_blue = np.array([130, 255, 255])  # Tightened hue range to focus on true blues
                     mask = cv2.inRange(hsv_roi, lower_blue, upper_blue)
                 
                 elif color_name == 'green':
