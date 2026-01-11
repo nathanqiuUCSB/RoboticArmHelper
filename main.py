@@ -447,22 +447,10 @@ def main():
         # Scan for X
         x_plan = {'shape': 'x'}
         x_target, x_best_pan_angle, _, _, x_best_scan_pos, x_shoulder_pos = scan_for_object(robot, detector, planner, x_plan)
-
-        if x_target is not None:
-            x_picture = take_one_photo(robot)
-            detections_x = detector.detect_objects(x_picture, target_attribute={'shape': 'x'})
-            x_objects = detector.filter_by_attribute(detections_x, {'shape': 'x'})
-            if x_objects:
-                x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
-                print(f"FOUND X AT STAR {x_star_index}")
-            else:
-                print("WARNING: X not found in confirmation photo")
-                x_star_index = None
-                x_shoulder_pos = None
-        else:
-            print("WARNING: X not found during scan - will skip drop step")
-            x_star_index = None
-            x_shoulder_pos = None
+        x_picture = take_one_photo(robot)
+        detections_x = detector.detect_objects(x_picture, target_attribute={'shape': 'x'})
+        x_objects = detector.filter_by_attribute(detections_x, {'shape': 'x'})
+        x_star_index = helper.find_closest_vertical_pixel(helper.get_center(x_objects[0]['bbox']))
 
         shoulder_pos = best_scan_pos["shoulder_pan.pos"]
 
