@@ -11,12 +11,15 @@ from gemini import NLPRobotPlanner
 from computer_vision import ObjectDetector
 from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
+from lerobot.model.kinematics import RobotKinematics
+from lerobot.utils.rotation import Rotation
 
 load_dotenv()
 
 PORT = os.getenv("ROBOT_PORT", "/dev/tty.usbmodem5A7C1217691")
 CALIBRATION_DIR = Path(__file__).parent
 ROBOT_ID = "hackathon_robot"
+URDF_PATH = CALIBRATION_DIR / "so101_new_calib.urdf"
 
 # Starting position - overhead looking down at table (normalized -100 to 100)
 # Custom scanning position
@@ -27,6 +30,17 @@ STARTING_POSITION = {
     "wrist_flex.pos": 90.0,
     "wrist_roll.pos": 53.0,
     "gripper.pos": 50.0  # Open gripper
+}
+
+# STAGE 2 Starting Position Template (with shoulder_pan.pos = 0.0 as template)
+# The actual shoulder_pan.pos from STAGE 1 will replace the 0.0 value
+STAGE2_STARTING_POSITION_TEMPLATE = {
+    "shoulder_pan.pos": 0.0,
+    "shoulder_lift.pos": -78.47,
+    "elbow_flex.pos": 66.13,
+    "wrist_flex.pos": 91.60,
+    "wrist_roll.pos": 54.68,
+    "gripper.pos": 49.42,
 }
 
 # EMPIRICAL TUNING PARAMETERS - Adjust these based on testing results
@@ -546,25 +560,206 @@ def main():
                             robot.send_action(current_pos)
                         time.sleep(0.1)
                     else:
-                        print(f"Iteration {iteration}: Object not detected, stopping.")
-                        break
+                        print(f"Iteration {iteration}: Object not detected, continuing...")
+                        time.sleep(0.1)
         
         print("\n" + "="*60)
-        print("Robot stopped - Object centered horizontally in camera frame")
+        print("STAGE 1 COMPLETE - Object centered horizontally in camera frame")
         print("="*60)
         print(f"Final pan position: {current_pos['shoulder_pan.pos']:.2f} (normalized)")
-        print("\nRobot will hold this position. Press Ctrl+C to exit.")
+        print("\nProceeding to STAGE 2: Positioning camera directly above object...")
         print("="*60)
         
-        # Hold position (keep sending position commands)
+        # STAGE 2: Position camera directly above object, perpendicular to ground
         try:
+            from stage2_helpers import (
+                joints_normalized_to_degrees,
+                joints_degrees_to_normalized,
+                create_perpendicular_camera_pose,
+                get_pan_angle_rad_from_normalized
+            )
+            
+            # Initialize kinematics solver
+            print("\nInitializing kinematics solver...")
+            try:
+                kinematics = RobotKinematics(
+                    urdf_path=str(URDF_PATH),
+                    target_frame_name="gripper_frame_link",
+                    joint_names=joint_names,
+                )
+                print("Kinematics solver initialized.")
+            except ImportError as e:
+                print(f"Error initializing kinematics: {e}")
+                raise
+            
+            # FIX shoulder_pan position from STAGE 1 - DO NOT CHANGE IT
+            fixed_pan_normalized = current_pos['shoulder_pan.pos']
+            fixed_pan_deg = joints_normalized_to_degrees({'shoulder_pan.pos': fixed_pan_normalized}, ['shoulder_pan'])[0]
+            pan_angle_rad = np.radians(fixed_pan_deg)
+            print(f"FIXED Pan angle: {fixed_pan_deg:.2f} degrees (normalized: {fixed_pan_normalized:.2f}) - WILL NOT CHANGE")
+            
+            # Find shoulder_pan index in joint_names
+            pan_index = joint_names.index('shoulder_pan') if 'shoulder_pan' in joint_names else None
+            
+            # Step 1: Create STAGE 2 starting position from template
+            # Copy the template and replace shoulder_pan.pos with the value from STAGE 1
+            print("\nSTAGE 2 Step 1: Moving to STAGE 2 starting position (template with fixed pan)...")
+            stage2_start_pos = STAGE2_STARTING_POSITION_TEMPLATE.copy()
+            stage2_start_pos['shoulder_pan.pos'] = fixed_pan_normalized
+            print(f"  Using template position with shoulder_pan.pos = {fixed_pan_normalized:.2f}")
+            
+            # Move to STAGE 2 starting position
+            print("Moving to STAGE 2 starting position...")
+            smooth_move(robot, stage2_start_pos, steps=80, dt=0.04)
+            time.sleep(0.5)
+            update_camera_display()
+            
+            # Get current joint positions in degrees for IK calculations
+            with robot_lock:
+                obs = robot.get_observation()
+            current_stage2_pos = {f"{name}.pos": obs[f"{name}.pos"] for name in joint_names}
+            current_joints_deg = joints_normalized_to_degrees(current_stage2_pos, joint_names)
+            
+            # FIX wrist_roll from STAGE 2 starting position - DO NOT CHANGE IT (keep camera orientation stable)
+            fixed_wrist_roll_normalized = current_stage2_pos['wrist_roll.pos']
+            fixed_wrist_roll_deg = joints_normalized_to_degrees({'wrist_roll.pos': fixed_wrist_roll_normalized}, ['wrist_roll'])[0]
+            print(f"FIXED Wrist roll: {fixed_wrist_roll_deg:.2f} degrees (normalized: {fixed_wrist_roll_normalized:.2f}) - WILL NOT CHANGE")
+            
+            # Find joint indices
+            wrist_roll_index = joint_names.index('wrist_roll') if 'wrist_roll' in joint_names else None
+            
+            # Get initial camera pose using forward kinematics
+            initial_pose = kinematics.forward_kinematics(current_joints_deg)
+            initial_pos_xyz = initial_pose[:3, 3]
+            initial_distance_xy = np.sqrt(initial_pos_xyz[0]**2 + initial_pos_xyz[1]**2)
+            fixed_z_height = initial_pos_xyz[2]  # CRITICAL: Keep this Z height constant (parallel to floor)
+            
+            print(f"Initial camera position: ({initial_pos_xyz[0]:.3f}, {initial_pos_xyz[1]:.3f}, {initial_pos_xyz[2]:.3f}) m")
+            print(f"Initial distance from base (XY): {initial_distance_xy:.3f} m")
+            print(f"FIXED Z height: {fixed_z_height:.3f} m - WILL REMAIN CONSTANT (parallel to floor)")
+            
+            # Step 2: Extend outward while keeping camera perpendicular and at constant height
+            print("\nSTAGE 2 Step 2: Extending forward while keeping camera perpendicular and at constant height...")
+            extension_step = 0.02  # 2 cm steps
+            max_extension_distance = 0.30  # Extend up to 30 cm from initial position
+            max_iterations = int(max_extension_distance / extension_step)  # Calculate max iterations
+            
+            iteration = 0
+            
+            while iteration < max_iterations:
+                iteration += 1
+                update_camera_display()
+                time.sleep(0.2)
+                
+                # Get current pose
+                current_pose = kinematics.forward_kinematics(current_joints_deg)
+                current_pos_xyz = current_pose[:3, 3]
+                current_distance_xy = np.sqrt(current_pos_xyz[0]**2 + current_pos_xyz[1]**2)
+                
+                # Calculate target distance (extend outward)
+                target_distance = initial_distance_xy + (iteration * extension_step)
+                
+                # Stop if we've reached max extension
+                if target_distance > initial_distance_xy + max_extension_distance:
+                    print(f"\n✓ STAGE 2 COMPLETE! Reached maximum extension distance ({max_extension_distance:.3f} m)")
+                    break
+                
+                target_x = target_distance * np.cos(pan_angle_rad)
+                target_y = target_distance * np.sin(pan_angle_rad)
+                target_z = fixed_z_height  # CRITICAL: Keep Z constant (parallel to floor)
+                
+                # Create perpendicular pose
+                target_pose = create_perpendicular_camera_pose((target_x, target_y, target_z), pan_angle_rad)
+                
+                # Solve IK
+                try:
+                    target_joints_deg = kinematics.inverse_kinematics(
+                        current_joints_deg,
+                        target_pose,
+                        position_weight=1.0,
+                        orientation_weight=1.0  # High weight to keep perpendicular
+                    )
+                    # CRITICAL: Lock shoulder_pan and wrist_roll to fixed values - DO NOT CHANGE THEM
+                    # Let IK solve for elbow_flex, shoulder_lift, and wrist_flex to maintain constant Z height
+                    if pan_index is not None:
+                        target_joints_deg[pan_index] = fixed_pan_deg
+                    if wrist_roll_index is not None:
+                        target_joints_deg[wrist_roll_index] = fixed_wrist_roll_deg
+                    current_joints_deg = target_joints_deg
+                except Exception as e:
+                    print(f"IK solve failed at iteration {iteration}: {e}")
+                    print(f"  Current distance: {current_distance_xy:.3f}m, Target distance: {target_distance:.3f}m")
+                    break
+                
+                # Convert to normalized and move
+                target_joints_normalized = joints_degrees_to_normalized(target_joints_deg, joint_names)
+                # Ensure locked joints are exactly fixed in normalized units too
+                target_joints_normalized['shoulder_pan.pos'] = fixed_pan_normalized
+                target_joints_normalized['wrist_roll.pos'] = fixed_wrist_roll_normalized
+                
+                with robot_lock:
+                    robot.send_action(target_joints_normalized)
+                
+                # Verify actual Z height after move
+                verify_pose = kinematics.forward_kinematics(current_joints_deg)
+                verify_z = verify_pose[2, 3]
+                print(f"Iteration {iteration}: Distance={target_distance:.3f}m, Z={verify_z:.3f}m (target: {fixed_z_height:.3f}m)")
+                
+                time.sleep(0.3)
+            
+            if iteration >= max_iterations:
+                print(f"\n✓ STAGE 2 COMPLETE! Extended for {max_iterations} iterations ({max_extension_distance:.3f} m)")
+            
+            # Get final position for display
+            final_pose = kinematics.forward_kinematics(current_joints_deg)
+            final_pos_xyz = final_pose[:3, 3]
+            final_distance_xy = np.sqrt(final_pos_xyz[0]**2 + final_pos_xyz[1]**2)
+            
+            print("\n" + "="*60)
+            print("STAGE 2 COMPLETE - Extended forward while keeping camera perpendicular")
+            print("="*60)
+            final_joints_normalized = joints_degrees_to_normalized(current_joints_deg, joint_names)
+            print(f"Final distance from base: {final_distance_xy:.3f} m")
+            print(f"Final Z height: {final_pos_xyz[2]:.3f} m (initial: {fixed_z_height:.3f} m)")
+            print("\nRobot will hold this position. Press Ctrl+C to exit.")
+            print("="*60)
+            
+            # Hold position
+            while True:
+                with robot_lock:
+                    robot.send_action(final_joints_normalized)
+                time.sleep(0.1)
+                update_camera_display()
+                
+        except Exception as e:
+            error_msg = str(e)
+            if "placo" in error_msg.lower():
+                print(f"\nError: {error_msg}")
+                print("STAGE 2 requires placo library. Please install it with:")
+                print("  pip install 'placo>=0.9.6,<0.10.0'")
+            else:
+                print(f"\nError in STAGE 2: {error_msg}")
+                import traceback
+                traceback.print_exc()
+            print("STAGE 2 skipped - falling back to holding STAGE 1 position")
             while True:
                 with robot_lock:
                     robot.send_action(current_pos)
-                time.sleep(0.1)  # Send position command every 100ms to hold position
+                time.sleep(0.1)
                 update_camera_display()
         except KeyboardInterrupt:
             print("\nInterrupted by user.")
+        except Exception as e:
+            print(f"\nError in STAGE 2: {e}")
+            import traceback
+            traceback.print_exc()
+            print("Falling back to holding STAGE 1 position")
+            while True:
+                with robot_lock:
+                    robot.send_action(current_pos)
+                time.sleep(0.1)
+                update_camera_display()
+        
         update_camera_display()  # Update display in main thread
         
         print("\nTask completed!")

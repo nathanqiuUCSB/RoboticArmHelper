@@ -17,7 +17,7 @@ class ObjectDetector:
         Each detection: {'bbox': (x1, y1, x2, y2), 'class': 'red', 'confidence': 0.9}
         """
         detections = []
-        results = self.model(image)[0]
+        results = self.model(image, verbose=False)[0]
 
         for box, cls, conf in zip(results.boxes.xyxy, results.boxes.cls, results.boxes.conf):
             x1, y1, x2, y2 = map(int, box)
