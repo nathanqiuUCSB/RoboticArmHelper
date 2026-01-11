@@ -85,9 +85,7 @@ class ObjectDetector:
             if target_attribute and "shape" in target_attribute and target_attribute["shape"]:
                 shape_name = target_attribute["shape"].lower()
                 if shape_name == 'x':
-                    x_detected = self.detect_x_shape(roi)
-                    print(f"X shape check: {x_detected}, current obj_class: {obj_class}")
-                    if x_detected:
+                    if self.detect_x_shape(roi):
                         obj_class = 'x'
 
             detections.append({
@@ -95,8 +93,6 @@ class ObjectDetector:
                 'class': obj_class,
                 'confidence': float(conf)
             })
-            if target_attribute and target_attribute.get('shape') == 'x':
-                print(f"Detection: class={obj_class}, bbox=({x1},{y1},{x2},{y2})")
             
         return detections
 
@@ -105,36 +101,27 @@ class ObjectDetector:
             return False
             
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        # More lenient Canny for duct tape (lower thresholds = more edges detected)
-        edges = cv2.Canny(gray, 10, 50)
-        # More lenient HoughLinesP: lower threshold, shorter minLineLength, larger maxLineGap
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=10, minLineLength=5, maxLineGap=30)
+        edges = cv2.Canny(gray, 20, 80)  # Very lenient
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=15, minLineLength=10, maxLineGap=20)  # Very lenient
         
         if lines is None or len(lines) < 2:
-            print(f"X detection failed: lines={lines is None}, count={len(lines) if lines is not None else 0}")
             return False
         
         slopes = []
-        vertical_lines = 0
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            # More lenient: accept lines with any significant horizontal component
-            if abs(x2 - x1) > 2:
+            if abs(x2 - x1) > 3:  # Ignore nearly vertical lines
                 slope = (y2 - y1) / (x2 - x1)
                 slopes.append(slope)
-            # Count near-vertical lines (for + shapes or rotated X)
-            elif abs(y2 - y1) > 5:
-                vertical_lines += 1
         
-        if len(slopes) < 2 and vertical_lines < 1:
+        if len(slopes) < 2:
             return False
         
-        # More lenient slope requirements for duct tape X
-        has_positive = any(s > 0.1 for s in slopes)
-        has_negative = any(s < -0.1 for s in slopes)
+        # Very loose requirements for X or +
+        has_positive = any(s > 0.2 for s in slopes)
+        has_negative = any(s < -0.2 for s in slopes)
         
-        # Accept if we have opposite slopes (X) OR vertical lines present (could be + or rotated X)
-        return (has_positive and has_negative) or (vertical_lines > 0 and len(slopes) + vertical_lines >= 2)
+        return has_positive and has_negative
     
     def get_largest_object(self, detections):
         """
