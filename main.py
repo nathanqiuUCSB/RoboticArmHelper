@@ -457,11 +457,6 @@ def main():
         color_star_index = helper.find_closest_vertical_pixel(helper.get_center(colored[0]['bbox']))
         print(f"FOUND COLORED OBJECT AT STAR {color_star_index}")
 
-        # Stop continuous camera thread before second scan
-        stop_camera_event.set()
-        if camera_thread:
-            camera_thread.join(timeout=1.0)
-        
         # Scan for X (blue)
         x_plan = {'color': 'blue'}
         print(f"\nStarting blue X scan with plan: {x_plan}")
