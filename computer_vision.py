@@ -50,8 +50,7 @@ class ObjectDetector:
                     mask = cv2.inRange(hsv_roi, lower_red1, upper_red1) + cv2.inRange(hsv_roi, lower_red2, upper_red2)
 
                 elif color_name == 'blue':
-                    # More lenient blue detection for duct tape/markers
-                    lower_blue = np.array([100, 50, 30])  # Lower saturation (50 instead of 150), lower brightness
+                    lower_blue = np.array([100, 150, 50])
                     upper_blue = np.array([140, 255, 255])
                     mask = cv2.inRange(hsv_roi, lower_blue, upper_blue)
 
