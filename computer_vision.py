@@ -100,17 +100,15 @@ class ObjectDetector:
         Detect if ROI contains an X shape using edge detection and line detection.
         Returns True if X-like pattern is found.
         """
-        if roi.size == 0:
-            return False
-            
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 30, 100)  # Lower thresholds
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=20, minLineLength=15, maxLineGap=15)  # More lenient
+        edges = cv2.Canny(gray, 50, 150)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=30, minLineLength=20, maxLineGap=10)
         
         if lines is None or len(lines) < 2:
             return False
         
-        # Check if there are lines with opposite slopes
+        # Simple heuristic: check if there are lines with opposite slopes
+        # (indicating crossing lines like an X)
         slopes = []
         for line in lines:
             x1, y1, x2, y2 = line[0]
@@ -118,9 +116,9 @@ class ObjectDetector:
                 slope = (y2 - y1) / (x2 - x1)
                 slopes.append(slope)
         
-        # Look for positive and negative slopes (X or + pattern)
-        has_positive = any(s > 0.3 for s in slopes)  # Less strict (was 0.5)
-        has_negative = any(s < -0.3 for s in slopes)  # Less strict (was -0.5)
+        # Look for positive and negative slopes (X pattern)
+        has_positive = any(s > 0.5 for s in slopes)
+        has_negative = any(s < -0.5 for s in slopes)
         
         return has_positive and has_negative
     
