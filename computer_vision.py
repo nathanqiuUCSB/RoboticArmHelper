@@ -80,6 +80,7 @@ class ObjectDetector:
                         obj_class = color_name 
                     else:
                         obj_class = "other"
+
             # Shape detection for "X"
             if target_attribute and "shape" in target_attribute and target_attribute["shape"]:
                 shape_name = target_attribute["shape"].lower()
