@@ -201,7 +201,8 @@ def scan_for_object(robot, detector, planner, plan, max_scan_offset=30.0, scan_s
     """Scan in a grid pattern from starting position to find target object.
     Returns: target dict, best_pan_angle, best_pixel_offset, best_frame, best_scan_pos
     """
-    print(f"Scanning for {plan.get('color', 'target')} object from starting position...")
+    target_name = plan.get('color') or plan.get('shape') or 'target'
+    print(f"Scanning for {target_name} object from starting position...")
     
     # Ensure we're at starting position
     move_to_starting_position(robot)
@@ -236,12 +237,20 @@ def scan_for_object(robot, detector, planner, plan, max_scan_offset=30.0, scan_s
                 
                 # Detect objects
                 target_color = plan.get('color')
-                detections = detector.detect_objects(frame_bgr, target_attribute={'color': target_color} if target_color else None)
-                targets = detector.filter_by_attribute(detections, {'color': target_color} if target_color else {})
-                
+                target_shape = plan.get("shape")
+                target_dict = {}
+                if target_color:
+                    target_dict['color'] = target_color
+                if target_shape:
+                    target_dict['shape'] = target_shape
+                target_attribute = target_dict if target_dict else None
+
+                detections = detector.detect_objects(frame_bgr, target_attribute=target_attribute)
+                targets = detector.filter_by_attribute(detections, target_dict if target_dict else {})
+                 
                 # Check if target found
                 target = None
-                if not target_color or 'biggest' in str(plan.get('action', '')).lower():
+                if (not target_color and not target_shape) or 'biggest' in str(plan.get('action', '')).lower():
                     if targets:
                         target = detector.get_largest_object(targets)
                 elif targets:
@@ -271,7 +280,7 @@ def scan_for_object(robot, detector, planner, plan, max_scan_offset=30.0, scan_s
     
     if best_target is None:
         print("Target object not found during scan.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     
     print(f"\nBest view found at pan angle {best_pan_offset:.2f} with object {best_distance_from_center:.1f}px from center")
     shoulder_pos = best_scan_pos["shoulder_pan.pos"]
