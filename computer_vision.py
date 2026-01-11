@@ -9,6 +9,18 @@ class ObjectDetector:
         Initialize YOLOv8 model
         """
         self.model = YOLO(model_path) # Yolo v8
+        self.cap = cv2.VideoCapture(2)
+        if self.cap.isOpened():
+            print(f"Camera works")
+    
+    def take_picture(self):
+        """
+        Grab one frame from the camera and return it (BGR image as numpy array).
+        """
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
+            raise RuntimeError("Failed to capture image from camera.")
+        return frame
 
     def detect_objects(self, image, target_attribute=None):
         """
@@ -46,6 +58,21 @@ class ObjectDetector:
                     lower_green = np.array([40, 50, 50])
                     upper_green = np.array([80, 255, 255])
                     mask = cv2.inRange(hsv_roi, lower_green, upper_green)
+                
+                elif color_name == 'white':
+                    lower_white = np.array([0, 0, 200])
+                    upper_white = np.array([179, 30, 255])
+                    mask = cv2.inRange(hsv_roi, lower_white, upper_white)
+
+                elif color_name == 'brown':
+                    lower_brown = np.array([10, 50, 20])
+                    upper_brown = np.array([20, 200, 150])
+                    mask = cv2.inRange(hsv_roi, lower_brown, upper_brown)
+
+                elif color_name == 'orange':
+                    lower_orange = np.array([5, 50, 50])
+                    upper_orange = np.array([30, 255, 255])
+                    mask = cv2.inRange(hsv_roi, lower_orange, upper_orange)
 
                 if mask is not None:
                     ratio = np.sum(mask > 0) / mask.size
@@ -61,6 +88,16 @@ class ObjectDetector:
             })
             
         return detections
+    
+    def get_largest_object(self, detections):
+        """
+        Return the detection with the largest bounding box area.
+        """
+        if not detections:
+            return None
+        
+        largest = max(detections, key=lambda d: (d['bbox'][2] - d['bbox'][0]) * (d['bbox'][3] - d['bbox'][1]))
+        return largest
 
     def filter_by_attribute(self, detections, attribute):
         """
@@ -75,16 +112,6 @@ class ObjectDetector:
                 # If no color specified, include all detections
                 filtered.append(det)
         return filtered
-    
-    def get_largest_object(self, detections):
-        """
-        Return the detection with the largest bounding box area.
-        """
-        if not detections:
-            return None
-        
-        largest = max(detections, key=lambda d: (d['bbox'][2] - d['bbox'][0]) * (d['bbox'][3] - d['bbox'][1]))
-        return largest
 
     def get_target_offset(self, bbox, image_shape):
         """
