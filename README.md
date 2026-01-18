@@ -1,7 +1,6 @@
 # SB Hackathon Winner: ExtendAble - AI Robotic Arm Project
 
-A voice-controlled robotic arm that uses computer vision, LLMs, and feedback-based control to locate, align with, and grasp objects from natural language commands.
-
+A voice-controlled robotic arm that uses computer vision, LLMs, and feedback-based control to locate, align with, and grasp objects from natural language commands, reimagining human mechanics.
 
 Designed for SB HACKS XII (2026) by Ahmed Alhakem, Beckett Hayes, Nathan Qiu, and Joshua Gray. 
 
