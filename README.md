@@ -1,4 +1,4 @@
-# SB Hackathon Winner: ExtendAble - AI Robotic Arm Project
+# SB HACKS WINNER: ExtendAble - AI Robotic Arm Project
 
 A voice-controlled robotic arm that uses computer vision, LLMs, and feedback-based control to locate, align with, and grasp objects from natural language commands.
 
