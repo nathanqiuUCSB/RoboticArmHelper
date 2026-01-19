@@ -91,33 +91,6 @@ Voice Command
 → Target Placement
 
 
-## Tech Stack
-
-**Robotics & Hardware**
-- SO-101 Robotic Arm
-- Servo-based 6-DOF control
-- Wrist-mounted camera
-
-**Backend**
-- Python
-- FastAPI
-- Uvicorn
-- Groq LLM API
-
-**Computer Vision**
-- YOLO
-- OpenCV
-
-**Frontend**
-- Node.js
-- React
-- Web Speech API
-
-**Other**
-- 3D Printing
-- Custom motion planning
-
-
 ## How we built it
 
 The physical robot was an SO-101 ARM, whose pieces were 3d printed based on designs from an open source repository. 
@@ -163,3 +136,30 @@ We also significantly improved our prompt engineering skills and had lots of pra
 ## What's next for Robotic Arm
 
 Next, we would love for the Robotic Arm to become agentic. The arm was originally designed for this purpose, but we were unable to train with our limited time and computing power. There exist frameworks developed hugging face that will allow us to do this. Essentially, we would "train" the model by manually performing tasks using some kind of input, and the robot would eventually learn to emulate these on its own.
+
+
+## Tech Stack
+
+**Robotics & Hardware**
+- SO-101 Robotic Arm
+- Servo-based 6-DOF control
+- Wrist-mounted camera
+
+**Backend**
+- Python
+- FastAPI
+- Uvicorn
+- Groq LLM API
+
+**Computer Vision**
+- YOLO
+- OpenCV
+
+**Frontend**
+- Node.js
+- React
+- Web Speech API
+
+**Other**
+- 3D Printing
+- Custom motion planning
