@@ -7,7 +7,7 @@ Designed for SB HACKS XII (2026) by Ahmed Alhakem, Beckett Hayes, Nathan Qiu, an
 Check out our dev post at: 
 https://devpost.com/software/robotic-arm-j4fmbq
 
-[![Watch our video](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=e0lhDRYjyEc)
+[![Watch our video](https://img.youtube.com/vi/e0lhDRYjyEc/0.jpg)](https://www.youtube.com/watch?v=e0lhDRYjyEc)
 
 ## Inspiration
 
