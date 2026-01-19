@@ -8,6 +8,7 @@ Check out our Dev Post:
 https://devpost.com/software/robotic-arm-j4fmbq
 
 Check out our Youtube Video:
+
 [![Watch our video](https://img.youtube.com/vi/e0lhDRYjyEc/0.jpg)](https://www.youtube.com/watch?v=e0lhDRYjyEc)
 
 ## Inspiration
