@@ -4,8 +4,10 @@ A voice-controlled robotic arm that uses computer vision, LLMs, and feedback-bas
 
 Designed for SB HACKS XII (2026) by Ahmed Alhakem, Beckett Hayes, Nathan Qiu, and Joshua Gray. 
 
-Check out our Dev Post: 
+Check out our Dev Post:
+
 https://devpost.com/software/robotic-arm-j4fmbq
+
 
 Check out our Youtube Video:
 
