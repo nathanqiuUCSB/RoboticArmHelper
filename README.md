@@ -150,7 +150,7 @@ Next, we would love for the Robotic Arm to become agentic. The arm was originall
 **Frontend**
 - Node.js
 - React
-- Web Speech API
+- TypeScript
 
 **Other**
 - 3D Printing
