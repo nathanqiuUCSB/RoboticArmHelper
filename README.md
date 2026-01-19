@@ -24,8 +24,6 @@ The robotic arm takes in a voice command telling it to grab an object (Eg: "Grab
 
 To run the full system locally, you must start both the backend API (robot + vision + LLM pipeline) and the speech-to-text frontend.
 
-⸻
-
 ### 1. Start the Backend (Robot + Vision + LLM)
 
 From the root of the project:
