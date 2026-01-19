@@ -32,10 +32,15 @@ From the root of the project:
 cd backend
 .../miniforge3/envs/lerobot/bin/python -m uvicorn main:app --reload
 ```
+
 This launches the FastAPI server that:
-	•	Handles speech-to-text processing
-	•	Communicates with the LLM
-	•	Runs computer vision and robot control logic
+
+	• Handles speech-to-text processing
+	
+	• Communicates with the LLM
+
+	• Runs computer vision and robot control logic
+
 
 ⚠️ Note: This assumes the lerobot conda environment is installed at the path above.
 
@@ -139,7 +144,7 @@ Next, we would love for the Robotic Arm to become agentic. The arm was originall
 ## Tech Stack
 
 **Robotics & Hardware**
-- SO-101 Robotic Arm
+- LeRobot SO-101 Robotic Arm
 - Servo-based 6-DOF control
 - Wrist-mounted camera
 
