@@ -86,8 +86,6 @@ This launches the FastAPI server that:
 
 ⚠️ Note: This assumes the lerobot conda environment is installed at the path above.
 
-⸻
-
 ### 2. Start the Speech-to-Text Frontend
 
 In a separate terminal window:
@@ -99,16 +97,24 @@ npm run dev
 ```
 This launches the frontend interface used to record voice commands and send them to the backend.
 
-⸻
-
 ### 3. Using the Robot
 
 1. Start both servers
-2. Speak a command such as:
-	•	“Grab an orange”
-	•	“Pick up the red object”
-3. The robotic arm will:
-	•	Locate the object
-	•	Align itself
-	•	Pick it up
-	•	Place it on the blue target pad (X)
+
+
+3. Speak a command such as:
+
+	• “Grab an orange”
+
+	• “Pick up the red object”
+
+
+5. The robotic arm will:
+
+	• Locate the object
+
+	• Align itself
+
+	• Pick it up
+
+	• Place it on the blue target pad (X)
