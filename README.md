@@ -61,14 +61,14 @@ This launches the frontend interface used to record voice commands and send them
 1. Start both servers
 
 2. Speak a command such as:
-	- “Grab an orange”
-	- “Pick up the red object”
+- “Grab an orange”
+- “Pick up the red object”
 
 3. The robotic arm will:
-	- Locate the object
-	- Align itself
-	- Pick it up
-	- Place it on the blue target pad (X)
+- Locate the object
+- Align itself
+- Pick it up
+- Place it on the blue target pad (X)
 
 
 ## System Architecture
