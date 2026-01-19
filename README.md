@@ -4,16 +4,21 @@ A voice-controlled robotic arm that uses computer vision, LLMs, and feedback-bas
 
 Designed for SB HACKS XII (2026) by Ahmed Alhakem, Beckett Hayes, Nathan Qiu, and Joshua Gray. 
 
+
 Check out our Devpost at: https://devpost.com/software/robotic-arm-j4fmbq
+
 Check out our Youtube Video at: https://www.youtube.com/e0lhDRYjyEc
+
 
 ## Inspiration
 
 Our inspiration for this project came from our fascination with the idea of building an autonomous robot of some sort that could perform human-like tasks. We were particularly inspired by the idea of robotics supplementing human capability by providing functionality that could assist people with every day tasks. The concepts of autonomous robotic arms could be specifically applied to people with disabilities by providing them new capabilities and expanding their physical abilities. This is a growing industry that interests us greatly. 
 
+
 ## What it does
 
 The robotic arm takes in a voice command telling it to grab an object (Eg: "Grab an orange"). After this input, the robotic arm will automatically locate the desired object, position itself to grab it, and carry it onto a "target pad" which is a blue X.
+
 
 ## How we built it
 
@@ -31,6 +36,7 @@ This meant that once we knew what partition the object was in, and we aligned it
 
 After grabbing the object, we used the same procedure to position the arm onto the target pad and release the object.
 
+
 ## Challenges we ran into
 
 There were two main challenges that we faced throughout the project. The first was developing a method to locate the objects in 3d space, and the second is accurately controlling the robot arm to move the head onto the object and pick it up. This was a major challenge due to the fact that we had only one camera, which made it difficult to interpret the 3d space of the robot. We attempted to use some Inverse Kinematic Libraries, but we found they were always slightly off and unable to perform in an acceptable quality for us. 
@@ -45,6 +51,7 @@ We're most proud of developing our own custom system that enabled the robot to v
 We're particularly proud of this approach for our creative problem solving and thinking outside the box, as we were able to find an alternate solution that differed from the existing ones provided in the form of Inverse Kinematic Libraries and the Agentic Frameworks of the robotic arm. We were also able to successfully and accurately move the robot arm with 6 degrees of freedom in a 3 dimensional space with only one arm and no automatic library abstractions. 
 
 On a personal level, this also symbolized our resilience and perseverance, as it was around 3AM when we thought of this new idea and pivoted away from our previous efforts of using inverse kinematics after being stuck for hours. 
+
 
 ## What we learned
 
