@@ -10,9 +10,21 @@ Check out our Devpost at: https://devpost.com/software/robotic-arm-j4fmbq
 Check out our Youtube Video at: https://www.youtube.com/watch?v=e0lhDRYjyEc
 
 
+## Inspiration
+
+Our inspiration for this project came from our fascination with the idea of building an autonomous robot of some sort that could perform human-like tasks. We were particularly inspired by the idea of robotics supplementing human capability by providing functionality that could assist people with every day tasks. The concepts of autonomous robotic arms could be specifically applied to people with disabilities by providing them new capabilities and expanding their physical abilities. This is a growing industry that interests us greatly. 
+
+
+## What it does
+
+The robotic arm takes in a voice command telling it to grab an object (Eg: "Grab an orange"). After this input, the robotic arm will automatically locate the desired object, position itself to grab it, and carry it onto a "target pad" which is a blue X.
+
+
 ## How to Run / Try It Out
 
 To run the full system locally, you must start both the backend API (robot + vision + LLM pipeline) and the speech-to-text frontend.
+
+⸻
 
 ### 1. Start the Backend (Robot + Vision + LLM)
 
@@ -67,14 +79,43 @@ This launches the frontend interface used to record voice commands and send them
 	• Place it on the blue target pad (X)
 
 
-## Inspiration
+## System Architecture
 
-Our inspiration for this project came from our fascination with the idea of building an autonomous robot of some sort that could perform human-like tasks. We were particularly inspired by the idea of robotics supplementing human capability by providing functionality that could assist people with every day tasks. The concepts of autonomous robotic arms could be specifically applied to people with disabilities by providing them new capabilities and expanding their physical abilities. This is a growing industry that interests us greatly. 
+Voice Command
+→ Speech-to-Text (Frontend)
+→ FastAPI Backend
+→ LLM Parsing (Object + Color)
+→ Computer Vision (YOLO + Camera)
+→ Partition-Based Motion Planning
+→ Servo Control (SO-101 Arm)
+→ Target Placement
 
 
-## What it does
+## Tech Stack
 
-The robotic arm takes in a voice command telling it to grab an object (Eg: "Grab an orange"). After this input, the robotic arm will automatically locate the desired object, position itself to grab it, and carry it onto a "target pad" which is a blue X.
+**Robotics & Hardware**
+- SO-101 Robotic Arm
+- Servo-based 6-DOF control
+- Wrist-mounted camera
+
+**Backend**
+- Python
+- FastAPI
+- Uvicorn
+- Groq LLM API
+
+**Computer Vision**
+- YOLO
+- OpenCV
+
+**Frontend**
+- Node.js
+- React
+- Web Speech API
+
+**Other**
+- 3D Printing
+- Custom motion planning
 
 
 ## How we built it
