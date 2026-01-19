@@ -7,7 +7,7 @@ Designed for SB HACKS XII (2026) by Ahmed Alhakem, Beckett Hayes, Nathan Qiu, an
 
 Check out our Devpost at: https://devpost.com/software/robotic-arm-j4fmbq
 
-Check out our Youtube Video at: https://www.youtube.com/e0lhDRYjyEc
+Check out our Youtube Video at: https://www.youtube.com/watch?v=e0lhDRYjyEc
 
 
 ## Inspiration
@@ -65,3 +65,50 @@ We also significantly improved our prompt engineering skills and had lots of pra
 ## What's next for Robotic Arm
 
 Next, we would love for the Robotic Arm to become agentic. The arm was originally designed for this purpose, but we were unable to train with our limited time and computing power. There exist frameworks developed hugging face that will allow us to do this. Essentially, we would "train" the model by manually performing tasks using some kind of input, and the robot would eventually learn to emulate these on its own.
+
+
+## How to Run / Try It Out
+
+To run the full system locally, you must start both the backend API (robot + vision + LLM pipeline) and the speech-to-text frontend.
+
+### 1. Start the Backend (Robot + Vision + LLM)
+
+From the root of the project:
+
+```bash
+cd backend
+/Users/ahmedalhakem/miniforge3/envs/lerobot/bin/python -m uvicorn main:app --reload
+```
+This launches the FastAPI server that:
+	•	Handles speech-to-text processing
+	•	Communicates with the LLM
+	•	Runs computer vision and robot control logic
+
+⚠️ Note: This assumes the lerobot conda environment is installed at the path above.
+
+⸻
+
+### 2. Start the Speech-to-Text Frontend
+
+In a separate terminal window:
+
+```bash
+cd stt-frontend
+npm install   # first time only
+npm run dev
+```
+This launches the frontend interface used to record voice commands and send them to the backend.
+
+⸻
+
+### 3. Using the Robot
+
+1. Start both servers
+2. Speak a command such as:
+	•	“Grab an orange”
+	•	“Pick up the red object”
+3. The robotic arm will:
+	•	Locate the object
+	•	Align itself
+	•	Pick it up
+	•	Place it on the blue target pad (X)
