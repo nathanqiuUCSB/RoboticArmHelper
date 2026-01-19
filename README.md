@@ -20,7 +20,7 @@ From the root of the project:
 
 ```bash
 cd backend
-/Users/ahmedalhakem/miniforge3/envs/lerobot/bin/python -m uvicorn main:app --reload
+.../miniforge3/envs/lerobot/bin/python -m uvicorn main:app --reload
 ```
 This launches the FastAPI server that:
 	•	Handles speech-to-text processing
