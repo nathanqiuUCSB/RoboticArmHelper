@@ -134,7 +134,7 @@ Next, we would love for the Robotic Arm to become agentic. The arm was originall
 
 **Robotics & Hardware**
 - LeRobot SO-101 Robotic Arm
-- Servo-based 6-DOF control
+- Servo-based 6-DoF control
 - Wrist-mounted camera
 
 **Backend**
